@@ -1,0 +1,32 @@
+# Test files
+test.py
+*.ipynb
+
+# Training data
+data/
+temp_data/
+
+# Python
+__pycache__/
+# *.pyc
+*.py[cod]
+
+# Environments
+.venv/
+venv/
+env/
+.env
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Flet
+.flet/
+build/
+storage/
+
+# IDE
+.idea/
+.vscode/
