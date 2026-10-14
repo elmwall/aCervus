@@ -14,6 +14,7 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.DARK
     page.window.width = 1000
     page.window.height = 700
+    page.padding = 0
     # page.horizontal_alignment = ft.MainAxisAlignment.START
     # page.vertical_alignment = ft.CrossAxisAlignment.START
 
@@ -29,7 +30,11 @@ def main(page: ft.Page):
                 editor.build(),
                 options.build()
             ],
-            vertical_alignment=ft.CrossAxisAlignment.START
+            # vertical_alignment=ft.CrossAxisAlignment.START,
+            expand=True,
+            spacing=0,
+            # padding=0
+            # margin=ft.Margin.all(0),
         )
     )
     page.update()

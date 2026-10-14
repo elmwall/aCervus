@@ -14,12 +14,15 @@ class NavBar:
         e.control.update()
 
     def options(self):
-        return ft.Column(controls=[
-            ft.Button(content="Editor"),
-            ft.Button(content="Subjects"),
-            ft.Button(content="History"),
-            ft.Button(content="Tree"),
-        ])
+        return ft.Column(
+            controls=[
+                ft.Button(content="Editor"),
+                ft.Button(content="Subjects"),
+                ft.Button(content="History"),
+                ft.Button(content="Tree"),
+            ],
+            expand=True,
+        )
 
     def previous_files(self):
         pass
@@ -29,12 +32,14 @@ class NavBar:
             controls=[ft.Container(
                 content=self.options(),
                 width=self.width_base,
-                height=self.height,
+                # height=self.height,
+                # expand=True,
                 bgcolor="#222222",
                 on_hover=self.animate,
                 animate=ft.Animation(duration=300, curve=ft.AnimationCurve.EASE_OUT),
             )],
-            width=150
+            width=150,
+            spacing=0
         )
         # self.animate(container)
 
