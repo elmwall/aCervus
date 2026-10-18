@@ -1,7 +1,7 @@
 import flet as ft
 
 # from ui.components import 
-from ui.field_generator import Editor
+from ui.editor import Editor
 from ui.sidebar import NavBar
 from ui.file_options import Options
 
