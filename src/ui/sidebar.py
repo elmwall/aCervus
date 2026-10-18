@@ -20,6 +20,8 @@ class NavBar:
                 ft.Button(content="Subjects"),
                 ft.Button(content="History"),
                 ft.Button(content="Tree"),
+                ft.Divider(),
+                ft.Text(value="Latest")
             ],
             expand=True,
         )

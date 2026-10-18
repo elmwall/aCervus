@@ -1,10 +1,15 @@
+# Not ready
+data/
+documents/
+temp_data/
+work_files/
+
 # Test files
 test.py
 *.ipynb
 
 # Training data
-data/
-temp_data/
+
 
 # Python
 __pycache__/

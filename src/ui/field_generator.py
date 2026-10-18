@@ -5,6 +5,13 @@ import json
 
 import flet as ft
 
+from ui.field_recepes import field_definitions
+from ui.components import (ControlLayer,
+                           EditorContainer,
+                           EditorText,
+                           MenuTooltip,
+                           OptionsIcon)
+
 
 class Editor:
     "Managing editor area and connected data input."
@@ -12,41 +19,103 @@ class Editor:
         self.temp_directory = "../temp_data/"
         self.timer = False
         self.fields = _initial_fields_data()
-        self.field_definitions = _field_definitions()
+        # self.field_definitions = _field_definitions()
         self.status = _status()
         INITIAL_SELCTION_KEY = "text"
         self.dropdown_selection = ft.Text(
-            value=self.field_definitions[INITIAL_SELCTION_KEY]["display"], 
+            value=field_definitions[INITIAL_SELCTION_KEY]["display"], 
             key=INITIAL_SELCTION_KEY
         )
+        self.fields_column = ft.Column(
+            controls=[],
+            expand=True,
+            width=600,
+            scroll=ft.ScrollMode.ADAPTIVE,
+            alignment=ft.MainAxisAlignment.START
+        )
+        self.editor = None
+        self.inspect = False
+        self.shield = ft.Container(
+            expand=True,
+            bgcolor=ft.Colors.with_opacity(0.0, ft.Colors.BLACK),
+            visible=False
+        )
+        self.controlled_elements = []
+        self.hovered_field = ""
+        self.field_selection = None
+
+    def switch_interaction(self):
+        if self.inspect: 
+            self.field_selection = None
+            self.inspect = False 
+        else: 
+            self.inspect = True
+        for x in self.controlled_elements:
+            print(x, x.ignore_interactions)
+            x.ignore_interactions = self.inspect
+        self.editor.update()
+
+    def identify_field(self, field_id):
+        self.hovered_field = field_id
+
+    def select_fields(self, field_id):
+        if self.field_selection is None:
+            self.field_selection = field_id
+        else:
+            origin = self.fields[self.field_selection]["position"]
+            self.fields[self.field_selection]["position"] = self.fields[field_id]["position"]
+            for x, y in self.fields.items():
+                if x == self.field_selection:
+                    continue
+                elif origin > self.fields[self.field_selection]["position"]:
+                    if y["position"] in range(self.fields[self.field_selection]["position"], origin):
+                        y["position"] += 1
+                elif origin < self.fields[self.field_selection]["position"]:
+                    print(range(origin, self.fields[self.field_selection]["position"]))
+                    if y["position"] in range(origin, self.fields[self.field_selection]["position"] + 1):
+                        y["position"] -= 1
+            _arrange_editor(self.rebuild, self.fields, self.write_temp, self.controlled_elements, self.identify_field, self.select_fields, self.inspect)
+            self.field_selection = None
 
     def add_field(self):
         "Manages info for selected field and collects Flet object."
         field_id = _generate_id(self.dropdown_selection.key, self.fields)
         index = len(self.fields_column.controls)
         self.fields[field_id] = _field_data(
-            self.dropdown_selection.key, "", self.field_definitions[self.dropdown_selection.key]["settings"], index
+            self.dropdown_selection.key, "", field_definitions[self.dropdown_selection.key]["settings"], index
         )
         self.fields_column.controls.insert(
-            index, _define_field(field_id, self.fields, self.fields, self.write_temp)
+            index, _define_field(field_id, self.fields, self.fields, self.write_temp, self.controlled_elements, self.identify_field, self.select_fields, self.inspect)
         )
         self.fields_column.update()
     
     def selector(self):
         "Add new field to editor via dropdown selector and confirmation."
-        self.dropdown = _define_selector(self.field_definitions, self.dropdown_selection)
-        return _define_options_field(self.dropdown, self.add_field)
+        self.dropdown = _define_selector(field_definitions, self.dropdown_selection)
+        return _define_options_field(self.dropdown, self.add_field, self.switch_interaction)
+
+    def rebuild(self, new_controls):
+        self.fields_column.controls.clear()
+        self.fields_column.controls = new_controls
 
     def build(self):
         "Generate editor view with user input."
-        self.fields_column = _arrange_editor(self.fields, self.write_temp)
-        return _arrange_build(self.fields_column, self.selector())
+        _arrange_editor(self.rebuild, self.fields, self.write_temp, self.controlled_elements, self.identify_field, self.select_fields, self.inspect)
+        self.editor = ft.Stack([
+            ft.Container(self.fields_column),
+            self.shield
+        ], expand=True)
+        return ft.Container(
+            content=_arrange_build(self.editor, self.selector()), 
+            expand=True
+        )
 
     def write_temp(self):
         "Auto-saves document after delay. Uses separate thread to avoid interruptions."
         # TODO: 
         # - (system settings) adjustable interval
         self.status["saved"] = False
+        print("last hovered", self.hovered_field)
         if not self.status["queued"]:
             self.status["queued"] = True
             thread = Thread(target=_thread, args=(self.fields, self.status))
@@ -62,29 +131,10 @@ class Editor:
         # - (file options) export to md/txt/html? #
 
 
-class OptionsIcon(ft.IconButton):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.style = ft.ButtonStyle(shape=ft.RoundedRectangleBorder())
-
-
-class MenuTooltip(ft.Tooltip):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.bgcolor = "#30343A"
-        self.text_style = ft.TextStyle(size=12, color=ft.Colors.GREEN_400)
-
-
-class EditorTextField(ft.TextField):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.border = ft.NoInputBorder()
-
-
 def _initial_fields_data():
     return {
-        "h1_1": _field_data("h1", "My title", None, 0),
-        "text_1": _field_data("text", "My input text.\n\nIt has multiple rows.", None, 1),
+        "h1_1": _field_data("h1", "", field_definitions["h1"]["settings"], 0),
+        "text_1": _field_data("text", "", field_definitions["text"]["settings"], 1),
     }
 
 
@@ -104,129 +154,85 @@ def _field_data(key, value, settings, position):
     }
 
 
-def _field_definitions():
-    return {
-        "h1": {
-            "key": "h1",
-            "display": "Title",
-            "settings": None
-        },
-        "h2": {
-            "key": "h2",
-            "display": "Heading 1",
-            "settings": None
-        },
-        "h3": {
-            "key": "h3",
-            "display": "Heading 2",
-            "settings": None
-        },
-        "text": {
-            "key": "text",
-            "display": "Text field",
-            "settings": None
-        },
-        "table": {
-            "key": "table",
-            "display": "Table field",
-            "settings": [4, 3]
-        },
-        "list": {
-            "key": "list",
-            "display": "List field",
-            "settings": None
-        },
-        "image": {
-            "key": "image",
-            "display": "Image",
-            "settings": None
-        },
-        "link": {
-            "key": "link",
-            "display": "Link",
-            "settings": None
-        },
-    }
+# def check_empty(e):
+#     # print("test", value)
+#     e.control.bgcolor = "#221818" if not e.control.value else "#111111"
+#     # e.control.update()
 
-
-
-def _define_field(field_id, data, fields, write_temp):
+def _define_field(field_id, data, fields, write_temp, controlled_elements, identify_field, select_fields, inspect):
     "Creates Flet object of requested type to document editor."
     info = data[field_id]
-    match info["type"]:
-        case "h1":
-            # TODO 
-            # - option to add right-side image #
-            return EditorTextField(
-                value=info["value"],
-                hint_text="Title",
-                text_style=ft.TextStyle(
-                    size=30,
-                    weight=ft.FontWeight.W_600
-                ),
-                on_change=lambda e: _update_field(e.control.value, field_id, data, fields, write_temp)
-            )
-        case "text":
-            # TODO 
-            # - basic text style options? #
-            return ft.Row(controls=[
-                EditorTextField(
-                    value=info["value"], 
-                    multiline=True,
-                    width=500,
-                    on_change=lambda e: _update_field(e.control.value, field_id, data, fields, write_temp)
-                ),
-            ])
-        case "table":
-            # TODO
-            # - add/remove column/line 
-            columns = info["settings"][0]
+    field_type = info["type"]
+    # match info["type"]:
+    if field_type in ["h1", "h2", "h3", "text"]:
+        # TODO 
+        # - option to add right-side image #
+        # base_on_change = EditorText.on_change
+        control_layer = ControlLayer(EditorText.text_format(
+            info["value"],
+            text_type=field_type,
+            # animate = ft.Animation(duration=300),
+            on_change=lambda e: _update_field(e.control.value, field_id, data, fields, write_temp), 
+        ))
+    elif field_type == "table":
+        # TODO
+        # - add/remove column/line 
+        columns = info["settings"][0]
+        if "header" not in data[field_id]["value"]:
             data[field_id]["value"] = {"header": {}}
-            return ft.DataTable(
-                columns = _table_columns(columns, field_id, data, fields, write_temp),
-                rows = _table_rows(info["settings"], field_id, data, fields, write_temp),
-                column_spacing=10,
-                horizontal_margin=10,
-                width={2: 500, 3: 550, 4: 600}[columns],
-            )
-        case "image":
-            # TODO
-            # - settings to add row of 1, 2, 3 #
-            return ft.Button(
-                "Select image file",
-                on_click=lambda e: _update_field(e.control.value, field_id, data, fields, write_temp)
-            )
-        case "link":
-            # TODO 
-            # - display text and link #
-            return ft.Row(controls=[
-                ft.TextField(
-                    hint_text="Enter URL",
-                    on_submit=lambda e: _update_field(e.control.value, field_id, data, fields, write_temp)
-                ),
-                ft.Button(
-                    content="Press Enter to confirm",
-                ),
-                ft.Button(icon=ft.Icon(ft.Icons.MENU)),
-            ])
-        case "list":
-            # TODO
-            # - basic function
-            # - checkbox and textfield
-            # - subtext field? #
-            pass
+        control_layer = ControlLayer(ft.DataTable(
+            columns = _table_columns(columns, field_id, data, fields, write_temp),
+            rows = _table_rows(info["settings"], field_id, data, fields, write_temp),
+            column_spacing=10,
+            horizontal_margin=10,
+            width={2: 500, 3: 550, 4: 600}[columns],
+        ))
+    elif field_type == "image":
+        # TODO
+        # - settings to add row of 1, 2, 3 #
+        pass
+        # return ft.Button(
+        #     "Select image file",
+        #     on_click=lambda e: _update_field(e.control.value, field_id, data, fields, write_temp)
+        # )
+    elif field_type == "link":
+        # TODO 
+        # - display text and link #
+        pass
+        # return ft.Row(controls=[
+        #     ft.TextField(
+        #         hint_text="Enter URL",
+        #         on_submit=lambda e: _update_field(e.control.value, field_id, data, fields, write_temp)
+        #     ),
+        #     ft.Button(
+        #         content="Press Enter to confirm",
+        #     ),
+        #     ft.Button(icon=ft.Icon(ft.Icons.MENU)),
+        # ])
+    elif field_type == "list":
+        # TODO
+        # - basic function
+        # - checkbox and textfield
+        # - subtext field? #
+        pass
+    elif field_type == "separator":
+        control_layer = ft.Divider()
+    control_layer.ignore_interactions = inspect
+    controlled_elements.append(control_layer)
+    return EditorContainer(control_layer, identify_field=identify_field, select_fields=select_fields, field_id=field_id)
 
 
 def _table_columns(columns, field_id, data, fields, write_temp):
     "Generates pre-defined table columns."
     column_cells = []
-    data[field_id]["value"]["header"] = dict()
     for x in range(columns):
-        data[field_id]["value"]["header"][x] = ""
+        if x not in data[field_id]["value"]["header"]:
+            data[field_id]["value"]["header"][x] = ""
         column_cells.append(ft.DataColumn(
-            label=EditorTextField(
-                value="",
+            label=EditorText.text_format(
+                data[field_id]["value"]["header"][x],
                 width={2: 230, 3: 160, 4: 130}[columns],
+                text_type="inset",
                 on_change=lambda e, x=x: _update_field(
                     e.control.value, field_id, data, fields, write_temp, column=x
                 )
@@ -239,20 +245,25 @@ def _table_rows(settings, field_id, data, fields, write_temp):
     "Generates pre-defined table rows with column cells."
     rows = []
     col_range, row_range = range(settings[0]), range(settings[1])
+    for y in row_range:
+        if f"row_{y}" not in data[field_id]["value"]:
+            data[field_id]["value"][f"row_{y}"] = {}
+        else:
+            for x in col_range:
+                if x not in data[field_id]["value"][f"row_{y}"]:
+                    data[field_id]["value"][f"row_{y}"][x] = ""
     rows = [
         ft.DataRow(cells=[
-            ft.DataCell(EditorTextField(
-                value="",
+            ft.DataCell(EditorText.text_format(
+                data[field_id]["value"].get(f"row_{y}", {}).get(x, ""),
                 width={2: 220, 3: 160, 4: 130}[settings[0]],
+                text_type="inset",
                 on_change=lambda e, x=x, y=y: _update_field(
                     e.control.value, field_id, data, fields, write_temp, column=x, row=f"row_{y}"
                 )
             )) for x in col_range
         ]) for y in row_range
     ]
-    data[field_id]["value"].update({
-        f"row_{y}": {x: "" for x in col_range} for y in row_range
-    })
     return rows
 
 
@@ -278,6 +289,7 @@ def _define_selector(field_definitions, dropdown_selection):
                     dropdown_selection,
                     ft.Icon(ft.Icons.ARROW_DROP_UP, size=20)
                 ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
             ),
             width=110,
             height=30,
@@ -290,8 +302,15 @@ def _define_selector(field_definitions, dropdown_selection):
         margin=ft.Margin(left=5, right=5)
     )
 
+# def _switch_interaction(interaction):
+#     # print(interaction)
+#     if interaction:
+#         interaction = False
+#     else:
+#         print("no change")
+#     print(interaction)
 
-def _define_options_field(dropdown, add_field):
+def _define_options_field(dropdown, add_field, switch_interaction):
     "Generates and arranges Flet objects for editor options field."
     # TODO 
     # add option for direct save 
@@ -313,8 +332,8 @@ def _define_options_field(dropdown, add_field):
                 ),
                 OptionsIcon(
                     icon=ft.Icons.SWAP_VERT,
-                    on_click=None,
-                    tooltip=MenuTooltip(message="Move field")
+                    on_click=switch_interaction,
+                    tooltip=MenuTooltip(message="Move field"),
                 ),
             ],
             spacing=0,
@@ -324,23 +343,24 @@ def _define_options_field(dropdown, add_field):
     )
 
 
-def _arrange_editor(fields, write_temp):
+def _arrange_editor(rebuild, fields, write_temp, controlled_elements, identify_field, select_fields, inspect):
     "Arranges the finished document editor fields into Flet column."
     column_controls = []
     print(fields)
     orded_fields = {k: v for k, v in sorted(fields.items(), key=lambda x: x[1]["position"])}
     for field_id in orded_fields.keys():
         column_controls.append(
-            _define_field(field_id, fields, fields, write_temp)
+            _define_field(field_id, fields, fields, write_temp, controlled_elements, identify_field, select_fields, inspect),
         )
-
-    return ft.Column(
-        controls=column_controls,
-        expand=True,
-        width=600,
-        scroll=ft.ScrollMode.ADAPTIVE,
-        alignment=ft.MainAxisAlignment.START
-    )
+        # column_controls.append(ft.Divider())
+    rebuild(column_controls)
+    # return ft.Column(
+    #     controls=column_controls,
+    #     expand=True,
+    #     width=600,
+    #     scroll=ft.ScrollMode.ADAPTIVE,
+    #     alignment=ft.MainAxisAlignment.START
+    # )
 
 
 def _arrange_build(editor_fields, selector):
