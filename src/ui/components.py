@@ -1,15 +1,15 @@
 import flet as ft
-
-from ui.field_recepes import field_definitions
         
 
 class ControlLayer(ft.Container):
+    "Access point for disabling interaction of editor function during field actions."
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.padding = ft.Padding(left=5, top=5, right=5, bottom=5)
 
 
 class EditorContainer(ft.Container):
+    "Frame for editor fields with shared style and functions."
     def __init__(self, *args, identify_field = None, select_fields = None, field_id = None, **kwargs):
         self.field_id = field_id
         self.identify_field = identify_field
@@ -24,30 +24,24 @@ class EditorContainer(ft.Container):
         self.on_click = self.set_field
 
     def indicate_field(self, e):
+        "Color highlight upon hovering on editor field."
         e.control.bgcolor = "#272C29" if e.data else "#111111"
         if self.identify_field is not None:
             self.identify_field(self.field_id)
-        print(self.field_id)
 
     def set_field(self):
+        "Records the id of the field in question upon click."
         if self.select_fields is not None:
             self.select_fields(self.field_id)
 
 
 class EditorText(ft.TextField):
+    "Text field with adapted functions for specific types/levels of text."
     def __init__(self, *args, value="", **kwargs):
         super().__init__(*args, **kwargs)
         self.border = ft.NoInputBorder()
         self.expand = True
-        # self.bgcolor = "#221818"
-        # self.on_change = lambda e: self.check_empty
-        # self.padding = ft.Margin(10)
         self.value = value
-        # self.animate = ft.Animation(duration=3000)
-
-    # def check_empty(self, e):
-    #     print("test", e.control.value)
-    #     e.control.bgcolor = "#381F1F" if len(e.control.value) == 0 else "#111111"
 
     @classmethod
     def text_format(cls, value, text_type = "text", width = None, **kwargs):
@@ -96,6 +90,7 @@ class EditorText(ft.TextField):
 
 
 class MenuTooltip(ft.Tooltip):
+    "Style and settings for tool-tips on hover."
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bgcolor = "#30343A"
@@ -103,6 +98,7 @@ class MenuTooltip(ft.Tooltip):
 
 
 class OptionsIcon(ft.IconButton):
+    "Style and settings for icons in options bar."
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.style = ft.ButtonStyle(shape=ft.RoundedRectangleBorder())

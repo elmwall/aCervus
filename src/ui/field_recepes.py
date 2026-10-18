@@ -1,6 +1,16 @@
 import flet as ft
 
 
+
+def field_data(key, value, settings, position):
+    return {
+        "type": key,
+        "value": value,
+        "settings": settings,
+        "position": position,
+    }
+
+
 field_definitions = {
     "h1": {
         "key": "h1",
@@ -48,3 +58,16 @@ field_definitions = {
         "settings": None
     }
 }
+
+
+initial_fields_data = {
+    "h1_1": field_data("h1", "", field_definitions["h1"]["settings"], 0),
+    "text_1": field_data("text", "", field_definitions["text"]["settings"], 1),
+}
+
+
+# def initial_fields_data():
+#     return {
+#         "h1_1": field_data("h1", "", field_definitions["h1"]["settings"], 0),
+#         "text_1": field_data("text", "", field_definitions["text"]["settings"], 1),
+#     }
