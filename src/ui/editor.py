@@ -1,4 +1,3 @@
-import secrets
 import time
 from threading import Thread
 import json
@@ -15,7 +14,7 @@ class Editor:
     def __init__(self):
         self.temp_directory = "../temp_data/"
         self.timer = False
-        self.fields = rec.initial_fields_data
+        self.fields_data = rec.initial_fields_data
         self.status = _status()
         INITIAL_SELCTION_KEY = "text"
         self.dropdown_selection = ft.Text(
@@ -29,7 +28,7 @@ class Editor:
             scroll=ft.ScrollMode.ADAPTIVE,
             alignment=ft.MainAxisAlignment.START
         )
-        self.editor = None
+        self.editor = ft.GestureDetector(mouse_cursor=ft.MouseCursor.BASIC)
         self.inspect = False
         self.shield = ft.Container(
             expand=True,
@@ -39,45 +38,64 @@ class Editor:
         self.controlled_elements = []
         self.hovered_field = None
         self.field_selection = None
+        self.initial_seleciton = True
 
-    def switch_interaction(self):
+    def switch_interaction(self, check = False):
+        if check: return self.inspect
         if self.inspect: 
             self.field_selection = None
             self.inspect = False 
+            self.editor.mouse_cursor = ft.MouseCursor.BASIC
         else: 
             self.inspect = True
+            self.initial_seleciton = True
+            self.editor.mouse_cursor = ft.MouseCursor.CLICK
         for x in self.controlled_elements:
             print(x, x.ignore_interactions)
             x.ignore_interactions = self.inspect
         self.editor.update()
 
-    def identify_field(self, field_id):
+    def id_hovered_field(self, field_id):
         self.hovered_field = field_id
 
-    def select_fields(self, field_id):
-        if self.field_selection is None:
+    def select_fields(self, field_id, drag = False, drop = False):
+        print("select_fields:", field_id)
+        if not field_id:
+            raise ValueError("field_id could not be accessed for selection.")
+            
+        if self.inspect and self.initial_seleciton:
             self.field_selection = field_id
-        else:
-            self.fields = cond.relocate_field(self.fields, field_id, self.field_selection)
-            cond.arrange_editor(self.rebuild, self.fields, self.write_temp, self.controlled_elements, self.identify_field, self.select_fields, self.inspect)
+            self.initial_seleciton = False
+            print("select_fields: define init")
+        elif drag:
+            print("select_fields: drag")
+            self.field_selection = field_id
+            self.initial_seleciton = False
+        elif self.inspect or drop:
+            print("success:", self.field_selection, field_id)
+            self.fields_data = cond.relocate_field(self.fields_data, field_id, self.field_selection)
+            tools = cond.BuildTools(None, self.fields_data, self.write_temp, self.controlled_elements, self.id_hovered_field, self.select_fields, self.inspect)
+            cond.arrange_editor(self.rebuild, tools)
             self.field_selection = None
 
     def add_field(self):
         "Manages info for selected field and collects Flet object."
-        field_id = cond.generate_id(self.dropdown_selection.key, self.fields)
+        field_id = cond.generate_id(self.dropdown_selection.key, self.fields_data)
         index = len(self.fields_column.controls)
-        self.fields[field_id] = rec.field_data(
-            self.dropdown_selection.key, "", rec.field_definitions[self.dropdown_selection.key]["settings"], index
+        type_settings = rec.field_definitions[self.dropdown_selection.key]
+        self.fields_data[field_id] = rec.field_data(
+            self.dropdown_selection.key, type_settings["initial_value"], type_settings["settings"], index
         )
+        tools = cond.BuildTools(field_id, self.fields_data, self.write_temp, self.controlled_elements, self.id_hovered_field, self.select_fields, self.inspect)
         self.fields_column.controls.insert(
-            index, cond.define_field(field_id, self.fields, self.fields, self.write_temp, self.controlled_elements, self.identify_field, self.select_fields, self.inspect)
+            index, cond.define_field(tools)
         )
         self.fields_column.update()
     
     def selector(self):
         "Add new field to editor via dropdown selector and confirmation."
         self.dropdown = cond.define_dropdown(rec.field_definitions, self.dropdown_selection)
-        return cond.define_options_field(self.dropdown, self.add_field, self.switch_interaction)
+        return cond.define_options_field(self.dropdown, self.add_field, self.switch_interaction, self.inspect)
 
     def rebuild(self, new_controls):
         self.fields_column.controls.clear()
@@ -85,16 +103,21 @@ class Editor:
 
     def build(self):
         "Generate editor view with user input."
-        cond.arrange_editor(self.rebuild, self.fields, self.write_temp, self.controlled_elements, self.identify_field, self.select_fields, self.inspect)
-        self.editor = ft.Stack([
-            ft.Container(self.fields_column),
-            self.shield
-        ], expand=True)
+        tools = cond.BuildTools(None, self.fields_data, self.write_temp, self.controlled_elements, self.id_hovered_field, self.select_fields, self.inspect)
+        cond.arrange_editor(self.rebuild, tools)
+        self.editor = ft.GestureDetector(
+            ft.Stack([
+                    ft.Container(self.fields_column),
+                    self.shield
+                ], expand=True),
+            mouse_cursor=ft.MouseCursor.BASIC,
+            expand=True,
+        )
         return ft.Container(
             content=cond.arrange_build(self.editor, self.selector()), 
-            expand=True
+            expand=True,
         )
-
+    
     def write_temp(self):
         "Auto-saves document after delay. Uses separate thread to avoid interruptions."
         # TODO: 
@@ -102,7 +125,7 @@ class Editor:
         self.status["saved"] = False
         if not self.status["queued"]:
             self.status["queued"] = True
-            thread = Thread(target=_thread, args=(self.fields, self.status))
+            thread = Thread(target=_thread, args=(self.fields_data, self.status))
             thread.start()
         else:
             print("already queued")

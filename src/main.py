@@ -9,7 +9,7 @@ def run_editor():
     pass
 
 def main(page: ft.Page):
-    page.on_error = lambda e: print("Page error:", e.data)
+    page.on_error = lambda e: print("Page error:", e)
     page.title = "aCervus"
     page.theme_mode = ft.ThemeMode.DARK
     page.window.width = 1000

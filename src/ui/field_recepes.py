@@ -15,48 +15,66 @@ field_definitions = {
     "h1": {
         "key": "h1",
         "display": "Title",
+        "initial_value": "",
         "settings": None
     },
     "h2": {
         "key": "h2",
         "display": "Heading 1",
+        "initial_value": "",
         "settings": None
     },
     "h3": {
         "key": "h3",
         "display": "Heading 2",
+        "initial_value": "",
         "settings": None
     },
     "text": {
         "key": "text",
         "display": "Text",
+        "initial_value": "",
         "settings": None
+    },
+    "columns": {
+        "key": "columns",
+        "display": "Columns",
+        "initial_value": "",
+        "settings": 2
     },
     "table": {
         "key": "table",
         "display": "Table",
+        "initial_value": "",
         "settings": [4, 3]
     },
     "list": {
         "key": "list",
         "display": "List",
-        "settings": None
+        "initial_value": [[False, ""]]*6,
+        "settings": {
+            "length": 6,
+            "use_checkbox": True
+        }
     },
     "image": {
         "key": "image",
         "display": "Image",
+        "initial_value": "",
         "settings": None
     },
     "link": {
         "key": "link",
         "display": "Link",
+        "initial_value": "",
         "settings": None
     },
     "separator": {
         "key": "separator",
         "display": "Separator",
+        "initial_value": "",
         "settings": None
-    }
+    },
 }
 
 
